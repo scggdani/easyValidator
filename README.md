@@ -1,16 +1,20 @@
 ## 参数校验器--easyValidator
-> 轻量级的`go-playground/validator` 
+> 一款轻量级的参数校验与解析器，与`go-playground/validator`相比，信息提示更人性化、可自由集成到各种项目中 
 
 ### 1. 功能与特性
 - 能够对结构体字段进行校验
 - 能够对http请求的参数进行校验，并将参数解析到对应的结构体
+- 能将Context上下文中保存的值解析到结构体并进行校验  
 - 支持结构体嵌套
 
 ### 2. 用法
 - 标签类型
 
 标签`form` 为参数名标签，会根据此标签的值从http请求中解析出相应字段。
+
 标签`check` 为校验标签，会根据改标签里的属性对字段进行校验。
+
+标签`default` 为默认值标签，当找不到对应字段值的时候会将改标签定义的值赋给对应字段。
 
 
 相关属性：  
@@ -31,7 +35,7 @@
 ```go
 type Home struct {
 	Addr string `form:"addr" check:"max=3"` // max=3表示限定该字段长度最大为3
-	Xxx int `form:"xxx"`
+	Xxx int `form:"xxx" default:"666"` // default=666表示当解析不出该字段值时使用666作为默认值
 }
 
 type Student struct {
@@ -63,6 +67,26 @@ func TestStructValidator(t *testing.T) {
 ```
 结果：`字段[addr]错误, 值为[1234], 校验规则为[最大长度为3]` 
 
+```go
+func TestStructValidator_Select(t *testing.T) {
+	a := Student{
+		Home: Home{
+			Addr: "123",
+			Xxx:  0,
+		},
+		Age:    22,
+		Height: 150,
+		Name:   "123",
+	}
+	validator := NewStructValidator()
+	err := validator.ValidateStruct(a)
+	if err != nil {
+		t.Log(err.Error())
+	}
+}
+```
+结果：`字段[Height]错误, 值为[150], 校验规则为[值为下列之一:{100,200};大于50]` 
+
 - http请求解析
 ```go
 func TestHttpReqValidator(t *testing.T) {
@@ -75,7 +99,45 @@ func TestHttpReqValidator(t *testing.T) {
     fmt.Printf("%+v\n",stu)
 }
 ```
-结果：`{Home:{Addr:123 Xxx:0} Age:19 Height:0 Name:jack}`  
+结果：`{Home:{Addr:123 Xxx:666} Age:19 Height:0 Name:jack}`  
+
+- Context上下文解析
+```go
+func TestContextValidator_TypeError(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "addr", "123")
+	ctx = context.WithValue(ctx, "age", int(22)) // 当context中指定键的值的类型与对应结构体字段类型不符时会报错
+	ctx = context.WithValue(ctx, "height", uint(100))
+	a := Student{}
+	validator := NewContextValidator()
+	if err := validator.BindContext(ctx, &a); err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Printf("%+v\n", a)
+}
+```
+由于`context` 中`age` 为`int` 类型，而所传结构体中`age` 字段为`byte` 类型，故会报错，结果为：
+```go
+context解析出现类型错误,结构体中类型为[uint8],context中对应值的类型为[int]
+{Home:{Addr:123 Xxx:666} Age:0 Height:0 Name:}
+```
+
+正常情况下：
+```go
+func TestContextValidator(t *testing.T) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "addr", "123")
+	ctx = context.WithValue(ctx, "height", uint(100))
+	a := Student{}
+	validator := NewContextValidator()
+	if err := validator.BindContext(ctx, &a); err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Printf("%+v\n", a)
+}
+```
+结果为：`{Home:{Addr:123 Xxx:666} Age:22 Height:100 Name:}` 
 
 ### 下一步计划：
-- 支持从上下文Context中解析参数并校验
+- 算法优化
+- 更多的校验属性支持

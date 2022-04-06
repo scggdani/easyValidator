@@ -15,11 +15,12 @@ type HttpRequestValidator interface {
 	BindHttpRequest(req *http.Request, val interface{}) error
 }
 
+// 该接口用于检验结构体字段的规范性
 type StructValidator interface {
 	ValidateStruct(val interface{}) error
 }
 
-// TODO: 待实现的接口, 从context中解析并验证参数
+// 该接口用于从Context上下文中解析参数并校验
 type ContextValidator interface {
 	BindContext(ctx *context.Context, val interface{}) error
 }
@@ -33,6 +34,7 @@ var (
 const (
 	ValidateTag = "check"
 	FormTag = "form"
+	DefaultTag = "default" // 用于定义默认值
 )
 
 // 针对数字类型

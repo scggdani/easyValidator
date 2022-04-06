@@ -5,6 +5,7 @@ package easyValidator
 
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"reflect"
@@ -71,6 +72,29 @@ func (validate *defaultStructValidator) ValidateStruct(val interface{}) error {
 		return errors.New("传入结构体为空")
 	}
 	return checkStruct(reflect.TypeOf(val), reflect.ValueOf(val))
+}
+
+type defaultContextValidator struct {
+
+}
+
+func NewContextValidator() *defaultContextValidator {
+	return &defaultContextValidator{}
+}
+
+func (Validate *defaultContextValidator) ValidatorType() string {
+	return validatorName(ValidatorStruct)
+}
+
+func (validate *defaultContextValidator) BindContext(ctx context.Context, val interface{}) error {
+	if ctx == nil {
+		return errors.New("上下文Context为空")
+	}
+	if val == nil {
+		return errors.New("传入结构体为空")
+	}
+	Type, Value := reflect.TypeOf(val), reflect.ValueOf(val)
+	return bindContext(ctx, Type.Elem(), Value.Elem())
 }
 
 
